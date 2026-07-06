@@ -10,6 +10,7 @@ Le projet sert de base a une experience d'inspection sterile, de demonstration p
 - Chargement du modele de demonstration `public/models/tasse4-2.stl`.
 - Import de fichiers `.stl` locaux et glisser-deposer.
 - Modes de rendu hybride, points et surface.
+- Dimensions, surface et volume estimes pour le modele charge.
 - Echantillonnage de surface uniforme pour obtenir un nuage de points stable.
 - Controle souris/tactile par rotation et zoom.
 - Controle sans contact optionnel via MediaPipe Hands.

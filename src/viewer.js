@@ -148,6 +148,7 @@ export class AetherViewer {
 
   loadGeometry(inputGeometry, name) {
     try {
+      const analysis = analyzeGeometry(inputGeometry);
       const geometry = normalizeGeometry(inputGeometry);
       const positions = sampleSurface(geometry, PARTICLE_COUNT);
       const target = this.particles.geometry.getAttribute("target");
@@ -158,6 +159,7 @@ export class AetherViewer {
       this.particles.material.uniforms.uMix.value = 0;
       this.modelName = name;
       this.triangleCount = geometry.getAttribute("position").count / 3;
+      this.analysis = analysis;
       this.emitStats();
       this.emitState("ready", "Renderer ready");
     } catch (error) {
@@ -282,13 +284,56 @@ export class AetherViewer {
       modelName: this.modelName,
       triangles: this.triangleCount,
       points: PARTICLE_COUNT,
-      zoom: Math.round((42 / this.targetZoom) * 100)
+      zoom: Math.round((42 / this.targetZoom) * 100),
+      dimensions: this.analysis?.dimensions,
+      surfaceArea: this.analysis?.surfaceArea,
+      volume: this.analysis?.volume
     });
   }
 
   emitState(kind, label) {
     this.onState?.({ kind, label });
   }
+}
+
+function analyzeGeometry(inputGeometry) {
+  const geometry = inputGeometry.index ? inputGeometry.toNonIndexed() : inputGeometry.clone();
+  geometry.computeBoundingBox();
+
+  const size = new THREE.Vector3();
+  geometry.boundingBox.getSize(size);
+
+  const attribute = geometry.getAttribute("position");
+  const positions = attribute.array;
+  const triangleCount = attribute.count / 3;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  const cross = new THREE.Vector3();
+  let surfaceArea = 0;
+  let signedVolume = 0;
+
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    readTriangle(positions, triangle, a, b, c);
+    ab.subVectors(b, a);
+    ac.subVectors(c, a);
+    surfaceArea += cross.crossVectors(ab, ac).length() * 0.5;
+    signedVolume += a.dot(cross.crossVectors(b, c)) / 6;
+  }
+
+  geometry.dispose();
+
+  return {
+    dimensions: {
+      x: size.x,
+      y: size.y,
+      z: size.z
+    },
+    surfaceArea,
+    volume: Math.abs(signedVolume)
+  };
 }
 
 function createIntroPositions(count) {

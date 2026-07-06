@@ -166,13 +166,15 @@ h1 {
 }
 
 .tool-panel {
+  top: 116px;
   left: 28px;
   bottom: 28px;
   width: min(360px, calc(100vw - 56px));
+  overflow-y: auto;
 }
 
 .panel-section {
-  padding: 18px;
+  padding: 14px 18px;
 }
 
 .panel-section + .panel-section {
@@ -212,13 +214,13 @@ h1 {
 .button-stack {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 
 .action-button,
 .icon-button,
 .segmented-control button {
-  min-height: 42px;
+  min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
@@ -281,12 +283,12 @@ h1 {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .metric-grid div {
-  min-height: 58px;
+  min-height: 52px;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -297,7 +299,7 @@ h1 {
   display: block;
   margin-top: 5px;
   overflow: hidden;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;

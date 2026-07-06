@@ -16,6 +16,9 @@ const elements = {
   zoomValue: document.querySelector("#zoomValue"),
   controlMode: document.querySelector("#controlMode"),
   gestureValue: document.querySelector("#gestureValue"),
+  sizeValue: document.querySelector("#sizeValue"),
+  surfaceValue: document.querySelector("#surfaceValue"),
+  volumeValue: document.querySelector("#volumeValue"),
   handToggle: document.querySelector("#handToggle"),
   zoomLock: document.querySelector("#zoomLock"),
   cameraPreview: document.querySelector("#cameraPreview"),
@@ -286,6 +289,9 @@ function updateStats(stats) {
   elements.triangleCount.textContent = `${formatNumber(stats.triangles)} triangles`;
   elements.pointCount.textContent = formatNumber(stats.points);
   elements.zoomValue.textContent = `${stats.zoom}%`;
+  elements.sizeValue.textContent = formatSize(stats.dimensions);
+  elements.surfaceValue.textContent = `${formatMeasure(stats.surfaceArea)} u2`;
+  elements.volumeValue.textContent = `${formatMeasure(stats.volume)} u3`;
 }
 
 function updateRenderState({ kind, label }) {
@@ -369,4 +375,25 @@ function showToast(message) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(Math.round(value));
+}
+
+function formatMeasure(value) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "n/a";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    notation: value >= 10000 ? "compact" : "standard",
+    maximumFractionDigits: value >= 100 ? 0 : 1
+  }).format(value);
+}
+
+function formatSize(dimensions) {
+  if (!dimensions) {
+    return "n/a";
+  }
+
+  return [dimensions.x, dimensions.y, dimensions.z]
+    .map((value) => formatMeasure(value))
+    .join(" x ");
 }
