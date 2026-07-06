@@ -1,0 +1,20 @@
+{
+  "name": "aethercore",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Visualiseur STL 3D avec controle sans contact par suivi de main.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "check": "npm run build"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.35",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "vite": "^8.1.3"
+  }
+}
