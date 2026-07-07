@@ -2,6 +2,8 @@ import "./styles.css";
 import { AetherViewer } from "./viewer.js";
 import { HandTracker } from "./hand-tracker.js";
 
+window.__AETHERCORE_BOOTED__ = true;
+
 const elements = {
   viewport: document.querySelector("#viewport"),
   fileInput: document.querySelector("#fileInput"),

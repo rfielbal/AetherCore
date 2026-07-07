@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 
-const DEMO_MODEL_URL = "/models/tasse4-2.stl";
+const DEMO_MODEL_URL = `${import.meta.env.BASE_URL}models/tasse4-2.stl`;
 const PARTICLE_COUNT = 70000;
 const INTRO_RADIUS = 17;
 

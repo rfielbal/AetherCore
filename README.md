@@ -31,6 +31,10 @@ npm run dev
 
 Puis ouvrez [http://localhost:5173](http://localhost:5173).
 
+N'ouvrez pas `index.html` directement depuis le Finder ou avec une URL `file://`.
+Le projet utilise Vite, Three.js et des modules ES: il doit etre servi par `npm run dev`
+ou par `npm run preview` apres un build.
+
 ## Production
 
 ```bash
@@ -38,6 +42,12 @@ npm run build
 ```
 
 Le build genere les fichiers statiques dans `dist/`.
+
+Pour tester ce build localement:
+
+```bash
+npm run preview
+```
 
 ## Structure
 
