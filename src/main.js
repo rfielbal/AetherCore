@@ -32,12 +32,16 @@ const elements = {
 
 let handTracker = null;
 let handTrackingEnabled = false;
+let handTrackingStarting = false;
 let activeHandHover = null;
 let clickCooldown = 0;
 let pinchFrames = 0;
 let zoomLocked = false;
 let lastHandPoint = null;
 let toastTimer = 0;
+
+const MIN_PINCH_CONFIDENCE = 0.42;
+const MIN_ZOOM_CONFIDENCE = 0.56;
 
 const viewer = new AetherViewer({
   container: elements.viewport,
@@ -172,30 +176,40 @@ function bindHandControls() {
 }
 
 async function startHandTracking() {
+  if (handTrackingStarting) {
+    return;
+  }
+
+  handTrackingStarting = true;
+  elements.handToggle.disabled = true;
+  elements.handToggle.textContent = "Camera loading";
+
   try {
     if (!handTracker) {
       handTracker = new HandTracker({ video: elements.cameraPreview });
-      handTracker.addEventListener("status", (event) => updateCameraState(event.detail));
+      handTracker.addEventListener("status", (event) => handleCameraStatus(event.detail));
       handTracker.addEventListener("tracking", (event) => handleHandTracking(event.detail));
     }
 
     await handTracker.start();
     handTrackingEnabled = true;
-    elements.handToggle.classList.add("is-active");
-    elements.handToggle.textContent = "Tracking on";
+    setHandTrackingButton(true);
     elements.controlMode.textContent = "Hand";
   } catch (error) {
     handTrackingEnabled = false;
+    setHandTrackingButton(false);
     updateCameraState({ kind: "error", label: "Camera blocked" });
     showToast(error.message || "Camera access failed");
+  } finally {
+    handTrackingStarting = false;
+    elements.handToggle.disabled = false;
   }
 }
 
 function stopHandTracking() {
   handTracker?.stop();
   handTrackingEnabled = false;
-  elements.handToggle.classList.remove("is-active");
-  elements.handToggle.textContent = "Hand tracking";
+  setHandTrackingButton(false);
   elements.handCursor.hidden = true;
   elements.controlMode.textContent = "Mouse";
   clearHandHover();
@@ -227,8 +241,9 @@ function handleHandTracking(detail) {
 
   const hovered = findHandTarget(screenPoint.x, screenPoint.y);
   setHandHover(hovered);
+  const precisePinch = detail.gesture === "pinch" && detail.confidence >= MIN_PINCH_CONFIDENCE;
 
-  if (hovered && detail.gesture === "pinch" && clickCooldown === 0) {
+  if (hovered && precisePinch && clickCooldown === 0) {
     hovered.click();
     clickCooldown = 38;
     pinchFrames = 0;
@@ -240,7 +255,7 @@ function handleHandTracking(detail) {
     return;
   }
 
-  if (detail.gesture === "pinch") {
+  if (precisePinch) {
     pinchFrames += 1;
 
     if (pinchFrames > 28 && clickCooldown === 0) {
@@ -252,19 +267,19 @@ function handleHandTracking(detail) {
     pinchFrames = 0;
   }
 
-  if (lastHandPoint && detail.gesture !== "pinch") {
+  if (lastHandPoint && detail.gesture === "rotate") {
     const deltaX = screenPoint.x - lastHandPoint.x;
     const deltaY = screenPoint.y - lastHandPoint.y;
     viewer.rotateBy(deltaX, deltaY, 0.72);
   }
 
   if (!zoomLocked) {
-    if (detail.gesture === "open") {
-      viewer.zoomBy(-0.55);
+    if (detail.gesture === "open" && detail.confidence >= MIN_ZOOM_CONFIDENCE) {
+      viewer.zoomBy(-0.38);
     }
 
-    if (detail.gesture === "fist") {
-      viewer.zoomBy(0.55);
+    if (detail.gesture === "fist" && detail.confidence >= MIN_ZOOM_CONFIDENCE) {
+      viewer.zoomBy(0.38);
     }
   }
 
@@ -302,6 +317,24 @@ function updateRenderState({ kind, label }) {
 function updateCameraState({ kind, label }) {
   elements.cameraState.textContent = label;
   elements.cameraState.className = `status-chip is-${kind}`;
+}
+
+function handleCameraStatus(detail) {
+  updateCameraState(detail);
+
+  if (detail.kind === "error") {
+    handTrackingEnabled = false;
+    setHandTrackingButton(false);
+    elements.handCursor.hidden = true;
+    elements.controlMode.textContent = "Mouse";
+    clearHandHover();
+    resetGesturePills();
+  }
+}
+
+function setHandTrackingButton(enabled) {
+  elements.handToggle.classList.toggle("is-active", enabled);
+  elements.handToggle.textContent = enabled ? "Tracking on" : "Hand tracking";
 }
 
 function setZoomLocked(value) {

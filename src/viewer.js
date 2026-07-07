@@ -128,33 +128,47 @@ export class AetherViewer {
 
   async loadStlFromUrl(url, name) {
     this.emitState("busy", "Loading model");
-    const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error(`Unable to load ${name}`);
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Unable to load ${name}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const geometry = this.loader.parse(buffer);
+      this.loadGeometry(geometry, name);
+    } catch (error) {
+      this.handleLoadError(error);
     }
-
-    const buffer = await response.arrayBuffer();
-    const geometry = this.loader.parse(buffer);
-    this.loadGeometry(geometry, name);
   }
 
   async loadStlFromFile(file) {
     this.emitState("busy", "Parsing STL");
-    const buffer = await file.arrayBuffer();
-    const geometry = this.loader.parse(buffer);
-    this.loadGeometry(geometry, file.name);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const geometry = this.loader.parse(buffer);
+      this.loadGeometry(geometry, file.name);
+    } catch (error) {
+      this.handleLoadError(error);
+    }
   }
 
   loadGeometry(inputGeometry, name) {
+    let geometry = null;
+    let geometryAttached = false;
+
     try {
       const analysis = analyzeGeometry(inputGeometry);
-      const geometry = normalizeGeometry(inputGeometry);
+      geometry = normalizeGeometry(inputGeometry);
       const positions = sampleSurface(geometry, PARTICLE_COUNT);
       const target = this.particles.geometry.getAttribute("target");
       target.array.set(positions);
       target.needsUpdate = true;
       this.rebuildSurface(geometry);
+      geometryAttached = true;
       this.morphProgress = 0;
       this.particles.material.uniforms.uMix.value = 0;
       this.modelName = name;
@@ -163,8 +177,13 @@ export class AetherViewer {
       this.emitStats();
       this.emitState("ready", "Renderer ready");
     } catch (error) {
-      this.emitState("error", "Model error");
-      this.onError?.(error);
+      if (geometry && !geometryAttached) {
+        geometry.dispose();
+      }
+
+      this.handleLoadError(error);
+    } finally {
+      inputGeometry.dispose();
     }
   }
 
@@ -294,16 +313,23 @@ export class AetherViewer {
   emitState(kind, label) {
     this.onState?.({ kind, label });
   }
+
+  handleLoadError(error) {
+    this.emitState("error", "Model error");
+    this.onError?.(error);
+  }
 }
 
 function analyzeGeometry(inputGeometry) {
   const geometry = inputGeometry.index ? inputGeometry.toNonIndexed() : inputGeometry.clone();
+  const attribute = getPositionAttribute(geometry);
+
   geometry.computeBoundingBox();
-
   const size = new THREE.Vector3();
+  const origin = new THREE.Vector3();
   geometry.boundingBox.getSize(size);
+  geometry.boundingBox.getCenter(origin);
 
-  const attribute = geometry.getAttribute("position");
   const positions = attribute.array;
   const triangleCount = attribute.count / 3;
   const a = new THREE.Vector3();
@@ -320,6 +346,9 @@ function analyzeGeometry(inputGeometry) {
     ab.subVectors(b, a);
     ac.subVectors(c, a);
     surfaceArea += cross.crossVectors(ab, ac).length() * 0.5;
+    a.sub(origin);
+    b.sub(origin);
+    c.sub(origin);
     signedVolume += a.dot(cross.crossVectors(b, c)) / 6;
   }
 
@@ -354,6 +383,7 @@ function createIntroPositions(count) {
 
 function normalizeGeometry(inputGeometry) {
   const geometry = inputGeometry.index ? inputGeometry.toNonIndexed() : inputGeometry.clone();
+  getPositionAttribute(geometry);
   geometry.computeBoundingBox();
 
   const box = geometry.boundingBox;
@@ -373,7 +403,7 @@ function normalizeGeometry(inputGeometry) {
 }
 
 function sampleSurface(geometry, count) {
-  const attribute = geometry.getAttribute("position");
+  const attribute = getPositionAttribute(geometry);
   const positions = attribute.array;
   const triangleCount = attribute.count / 3;
   const cumulativeAreas = new Float32Array(triangleCount);
@@ -382,13 +412,14 @@ function sampleSurface(geometry, count) {
   const c = new THREE.Vector3();
   const ab = new THREE.Vector3();
   const ac = new THREE.Vector3();
+  const cross = new THREE.Vector3();
   let totalArea = 0;
 
   for (let triangle = 0; triangle < triangleCount; triangle += 1) {
     readTriangle(positions, triangle, a, b, c);
     ab.subVectors(b, a);
     ac.subVectors(c, a);
-    totalArea += ab.cross(ac).length() * 0.5;
+    totalArea += cross.crossVectors(ab, ac).length() * 0.5;
     cumulativeAreas[triangle] = totalArea;
   }
 
@@ -420,6 +451,16 @@ function readTriangle(positions, triangle, a, b, c) {
   a.set(positions[offset], positions[offset + 1], positions[offset + 2]);
   b.set(positions[offset + 3], positions[offset + 4], positions[offset + 5]);
   c.set(positions[offset + 6], positions[offset + 7], positions[offset + 8]);
+}
+
+function getPositionAttribute(geometry) {
+  const attribute = geometry.getAttribute("position");
+
+  if (!attribute || attribute.count < 3) {
+    throw new Error("The STL does not contain triangle data.");
+  }
+
+  return attribute;
 }
 
 function findTriangle(cumulativeAreas, target) {

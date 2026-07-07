@@ -49,6 +49,11 @@ button {
   border: 0;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .app-shell {
   position: relative;
   min-height: 100%;
